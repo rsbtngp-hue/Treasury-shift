@@ -215,9 +215,25 @@ function latestDate(){const ds=dailyRecords.map(r=>parseDate(r.dayBeginDate)).fi
 function updateFilters(){
   const prevDate=$('reportDate').value,prevDiv=$('divisionFilter').value,prevSub=$('subDivisionFilter').value;
   const dates=[...new Set(dailyRecords.map(r=>parseDate(r.dayBeginDate)).filter(Boolean))].sort();
-  $('reportDate').innerHTML='';dates.slice().reverse().forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=displayDate(d);$('reportDate').appendChild(o)});
-  $('reportDate').value=dates.includes(prevDate)?prevDate:(dates[dates.length-1]||'');
-  if(dates.length){if(!$('dateFrom').value)$('dateFrom').value=dates[0];if(!$('dateTo').value)$('dateTo').value=dates[dates.length-1];}
+  const latest=dates.length?dates[dates.length-1]:'';
+  // Keep a fresh dashboard focused on the latest date available locally or after Google sync.
+  // If the range was still on the previous default latest date, advance it when newer data arrives.
+  const oldLatest=window.__treasuryShiftLatestDate||'';
+  const wasDefaultRange=!$('dateFrom').value||!$('dateTo').value||
+    ($('dateFrom').value===oldLatest&&$('dateTo').value===oldLatest);
+  $('reportDate').innerHTML='';
+  dates.slice().reverse().forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=displayDate(d);$('reportDate').appendChild(o)});
+  $('reportDate').value=dates.includes(prevDate)&&prevDate!==oldLatest?prevDate:latest;
+  if(latest){
+    if(wasDefaultRange){$('dateFrom').value=latest;$('dateTo').value=latest;}
+    else{
+      if(!$('dateFrom').value)$('dateFrom').value=latest;
+      if(!$('dateTo').value)$('dateTo').value=latest;
+      // Advance a range that was using the previous default latest date.
+      if(oldLatest&&$('dateFrom').value===oldLatest&&$('dateTo').value===oldLatest){$('dateFrom').value=latest;$('dateTo').value=latest;}
+    }
+  }
+  window.__treasuryShiftLatestDate=latest;
   const divs=[...new Set(directory.map(o=>o.division||'Unmapped'))].sort((a,b)=>a.localeCompare(b));
   $('divisionFilter').innerHTML='<option value="">All Divisions</option>'+divs.map(d=>`<option value="${escapeAttr(d)}">${escapeHtml(d)}</option>`).join('');
   $('divisionFilter').value=divs.includes(prevDiv)?prevDiv:'';
